@@ -30,8 +30,8 @@ int main(int argc, char* argv[])
   nh.getParam("start_angle", config.start_angle);
   nh.getParam("max_num_points_scan", max_num_points_scan);
   config.max_num_points_scan = max_num_points_scan;
-  nh.getParam("topic", config.start_angle, "scan");
-  nh.getParam("frame_id", config.start_angle, "r2000");
+  if (nh.hasParam("scan_topic")) nh.getParam("scan_topic", config.scan_topic);
+  if (nh.hasParam("frame_id")) nh.getParam("frame_id", config.frame_id);
 
   std::unique_ptr<Transport> transport;
   if (transport_str == "udp")
