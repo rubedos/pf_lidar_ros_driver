@@ -53,6 +53,9 @@ struct ScanConfig
   uint max_num_points_scan = 0;
   uint skip_scans = 0;
 
+  std::string scan_topic = "scan";
+  std::string frame_id = "r2000";
+
   // void print()
   // {
   //   std::cout << "Scan output config:\n"

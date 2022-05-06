@@ -183,7 +183,7 @@ std::unique_ptr<Pipeline<PFPacket>> PFInterface::get_pipeline(std::string packet
     {
       parser = std::unique_ptr<Parser<PFPacket>>(new PFR2000_C_Parser);
     }
-    reader = std::shared_ptr<Reader<PFPacket>>(new ScanPublisherR2000("/scan", "scanner"));
+    reader = std::shared_ptr<Reader<PFPacket>>(new ScanPublisherR2000(config_.scan_topic, config_.frame_id));
   }
   else if (product_ == "R2300")
   {
@@ -191,7 +191,7 @@ std::unique_ptr<Pipeline<PFPacket>> PFInterface::get_pipeline(std::string packet
     {
       parser = std::unique_ptr<Parser<PFPacket>>(new PFR2300_C1_Parser);
     }
-    reader = std::shared_ptr<Reader<PFPacket>>(new ScanPublisherR2300("/cloud", "scanner"));
+    reader = std::shared_ptr<Reader<PFPacket>>(new ScanPublisherR2300("cloud", config_.frame_id));
   }
   writer = std::shared_ptr<Writer<PFPacket>>(new PFWriter<PFPacket>(std::move(transport_), parser));
   return std::unique_ptr<Pipeline<PFPacket>>(
