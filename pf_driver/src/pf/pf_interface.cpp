@@ -32,7 +32,7 @@ bool PFInterface::init(std::shared_ptr<HandleInfo> info, std::shared_ptr<ScanCon
 
   if (!handle_version(opi.version_major, opi.version_minor, topic, frame_id))
   {
-    ROS_ERROR("Device unsupported");
+    ROS_ERROR_STREAM("Device of version " << opi.version_major << "." << opi.version_minor <<" unsupported");
     return false;
   }
   ROS_INFO("Device found: %s", product_.c_str());
@@ -105,7 +105,7 @@ bool PFInterface::can_change_state(PFState state)
 bool PFInterface::handle_version(int major_version, int minor_version, std::string topic, std::string frame_id)
 {
   std::string expected_dev = "";
-  if (major_version == 1 && minor_version == 3)
+  if (major_version == 1 && minor_version == 4)
   {
     expected_dev = "R2000";
     protocol_interface_ = std::make_shared<PFSDP_2000>(info_, config_, params_, config_mutex_);
