@@ -31,6 +31,7 @@ struct ProtocolInfo
   std::vector<std::string> commands;  // list of available commands
                                       // Since R2300 may not give correct error reports
                                       // it is safer to keep the list of commands
+  uint16_t device_family;
 };
 
 struct HandleInfo
@@ -79,6 +80,7 @@ struct ScanParameters
   uint16_t layers_enabled = 0;
   double scan_freq = 0.0;        // needed to calculate scan resolution in R2300
   uint16_t h_enabled_layer = 0;  // highest enabled layer
+  bool apply_correction = true;
 
   // void print()
   // {
@@ -190,6 +192,7 @@ class PFSDPBase
 private:
   using HTTPInterfacePtr = std::unique_ptr<HTTPInterface>;
   HTTPInterfacePtr http_interface;
+  std::function<void()> handle_connection_failure;
 
   const std::map<std::string, std::string> get_request(const std::string command, std::vector<std::string> json_keys,
                                                        const std::initializer_list<param_type> query)
@@ -226,6 +229,18 @@ private:
     return true;
   }
 
+  bool is_connection_failure(const std::string http_error)
+  {
+    std::string error_1 = "Failed to connect to ";
+    std::string error_2 = "No route to host";
+
+    if (http_error.find(error_1) != std::string::npos && http_error.find(error_2) != std::string::npos)
+    {
+      return true;
+    }
+    return false;
+  }
+
   bool check_error(std::map<std::string, std::string>& mp, const std::string& err_code, const std::string& err_text,
                    const std::string& err_http)
   {
@@ -242,6 +257,13 @@ private:
     if (http_error.compare(std::string("OK")))
     {
       std::cerr << "HTTP ERROR: " << http_error << std::endl;
+      if (is_connection_failure(http_error))
+      {
+        if (handle_connection_failure)
+        {
+          handle_connection_failure();
+        }
+      }
       return false;
     }
 
@@ -276,6 +298,11 @@ public:
     , config_mutex_(config_mutex)
     , http_interface(new HTTPInterface(info->hostname, "cmd"))
   {
+  }
+
+  void set_connection_failure_cb(std::function<void()> callback)
+  {
+    handle_connection_failure = callback;
   }
 
   const std::vector<std::string> list_parameters()
@@ -313,6 +340,7 @@ public:
     opi.version_major = atoi(resp["version_major"].c_str());
     opi.version_minor = atoi(resp["version_minor"].c_str());
     opi.protocol_name = resp["protocol_name"];
+    opi.device_family = get_parameter_int("device_family");
 
     return opi;
   }
@@ -368,14 +396,6 @@ public:
   void request_handle_tcp(const std::string port = "", const std::string packet_type = "")
   {
     param_map_type query;
-    if (!port.empty())
-    {
-      query["port"] = port;
-    }
-    else if (info_->port != "0")
-    {
-      query["port"] = info_->port;
-    }
     if (!packet_type.empty())
     {
       query["packet_type"] = packet_type;
@@ -477,6 +497,11 @@ public:
   }
 
   virtual std::string get_product()
+  {
+    return std::string("");
+  }
+
+  virtual std::string get_part()
   {
     return std::string("");
   }

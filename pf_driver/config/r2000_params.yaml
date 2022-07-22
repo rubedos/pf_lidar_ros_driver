@@ -4,8 +4,8 @@ R2000:
   device: "R2000"
   start_angle: -1800000
   max_num_points_scan: 0
-  packet_type: "A"
+  packet_type: "B"
   scan_topic: "/scan"
-  frame_id: "scanner"
+  frame_id: "scanner_link"
   watchdogtimeout: 60000
   watchdog: true

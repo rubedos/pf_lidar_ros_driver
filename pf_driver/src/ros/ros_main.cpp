@@ -36,11 +36,15 @@ int main(int argc, char* argv[])
   int max_num_points_scan = 0;
   int watchdogtimeout = 0;
   bool watchdog;
+  int num_layers = 0;
+  bool apply_correction;
   dev_nh.getParam("start_angle", config->start_angle);
   dev_nh.getParam("max_num_points_scan", max_num_points_scan);
   dev_nh.getParam("packet_type", config->packet_type);
   dev_nh.getParam("watchdogtimeout", watchdogtimeout);
-  dev_nh.getParam("watchdogtimeout", watchdog);
+  dev_nh.getParam("watchdog", watchdog);
+  dev_nh.getParam("num_layers", num_layers);
+  dev_nh.param<bool>("apply_correction", apply_correction, false);
 
   config->max_num_points_scan = max_num_points_scan;
   config->watchdogtimeout = watchdogtimeout;
@@ -52,19 +56,46 @@ int main(int argc, char* argv[])
 
   // currently ScanParameters is not set through params
   std::shared_ptr<ScanParameters> params = std::make_shared<ScanParameters>();
+  params->apply_correction = apply_correction;
+
+  ros::AsyncSpinner spinner(0);
+  spinner.start();
 
   PFInterface pf_interface;
-  if (!pf_interface.init(info, config, params, topic, frame_id))
+
+  std::shared_ptr<std::mutex> net_mtx_ = std::make_shared<std::mutex>();
+  std::shared_ptr<std::condition_variable> net_cv_ = std::make_shared<std::condition_variable>();
+  bool net_fail = false;
+
+  bool retrying = false;
+
+  while (ros::ok())
   {
-    ROS_ERROR("Unable to initialize device");
-    return -1;
+    net_fail = false;
+    if (!pf_interface.init(info, config, params, topic, frame_id, num_layers))
+    {
+      ROS_ERROR("Unable to initialize device");
+      if (retrying)
+      {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        continue;
+      }
+      return -1;
+    }
+    if (!pf_interface.start_transmission(net_mtx_, net_cv_, net_fail))
+    {
+      ROS_ERROR("Unable to start scan");
+      return -1;
+    }
+    retrying = true;
+    // wait for condition variable
+    std::unique_lock<std::mutex> net_lock(*net_mtx_);
+    net_cv_->wait(net_lock, [&net_fail] { return net_fail; });
+    ROS_ERROR("Network failure");
+    pf_interface.terminate();
   }
-  if (!pf_interface.start_transmission())
-  {
-    ROS_ERROR("Unable to start scan");
-    return -1;
-  }
-  ros::spin();
+
+  ros::waitForShutdown();
   pf_interface.stop_transmission();
   return 0;
 }
